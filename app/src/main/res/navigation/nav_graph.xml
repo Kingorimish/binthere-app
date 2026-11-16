@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/dashboardFragment">
+
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.example.binthere.ui.screens.DashboardFragment"
+        android:label="Dashboard"
+        tools:layout="@layout/fragment_dashboard" />
+
+    <fragment
+        android:id="@+id/alertsFragment"
+        android:name="com.example.binthere.ui.screens.AlertsFragment"
+        android:label="Cleanup Alerts"
+        tools:layout="@layout/fragment_list_screen" />
+
+    <fragment
+        android:id="@+id/schedulesFragment"
+        android:name="com.example.binthere.ui.screens.SchedulesFragment"
+        android:label="Pickup Schedules"
+        tools:layout="@layout/fragment_list_screen" />
+
+    <fragment
+        android:id="@+id/collectionPointsFragment"
+        android:name="com.example.binthere.ui.screens.CollectionPointsFragment"
+        android:label="Collection Points"
+        tools:layout="@layout/fragment_list_screen" />
+</navigation>
