@@ -5,44 +5,33 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-data class WeatherResponse(
-    val name: String,
-    val main: MainWeather,
-    val weather: List<WeatherCondition>,
-    val rain: RainVolume? = null
-)
-
-data class MainWeather(
-    val temp: Double,
-    val humidity: Int
-)
-
-data class WeatherCondition(
-    val main: String,
-    val description: String
-)
-
-data class RainVolume(
-    val `1h`: Double? = 0.0
-)
-
-interface WeatherApiService {
+interface WeatherApi {
     @GET("data/2.5/weather")
     suspend fun getNairobiWeather(
-        @Query("q") city: String = "Nairobi,KE",
-        @Query("units") units: String = "metric",
-        @Query("appid") apiKey: String
+        @Query("q") city: String = "Nairobi",
+        @Query("appid") apiKey: String,
+        @Query("units") units: String = "metric"
     ): WeatherResponse
-}
 
-object RetrofitClient {
-    private const val BASE_URL = "https://api.openweathermap.org/"
+    companion object {
+        private const val BASE_URL = "https://api.openweathermap.org/"
 
-    val weatherService: WeatherApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(WeatherApiService::class.java)
+        fun create(): WeatherApi {
+            val retrofit = Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+            return retrofit.create(WeatherApi::class.java)
+        }
     }
 }
+
+// Data classes to match the OpenWeatherMap JSON response
+data class WeatherResponse(
+    val weather: List<WeatherDesc>,
+    val main: MainTemp,
+    val rain: RainVolume? = null
+)
+data class WeatherDesc(val main: String, val description: String)
+data class MainTemp(val temp: Double)
+data class RainVolume(val `1h`: Double? = null)

@@ -1,12 +1,13 @@
 plugins {
     alias(libs.plugins.android.application)
+    id("com.google.devtools.ksp") version "2.3.4" // Updated to a compatible version
 }
-
 android {
     namespace = "com.example.binthere"
-    compileSdk {
-        version = release(37)
-    }
+
+    // CHANGE THESE TWO LINES:
+    compileSdk = 37
+    // (Delete the { version = release(37) } block)
 
     defaultConfig {
         applicationId = "com.example.binthere"
@@ -17,6 +18,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    // ... rest of your file ...
 
     buildFeatures {
         viewBinding = true
@@ -47,7 +49,8 @@ dependencies {
     val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    annotationProcessor("androidx.room:room-compiler:$roomVersion")
+    // CHANGED: annotationProcessor to ksp
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     // ViewModel & Lifecycle (MVVM Architecture)
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")

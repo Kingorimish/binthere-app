@@ -2,7 +2,7 @@ package com.example.binthere.data.repository
 
 import com.example.binthere.data.local.dao.WasteDao
 import com.example.binthere.data.local.entities.*
-import com.example.binthere.data.remote.RetrofitClient
+import com.example.binthere.data.remote.WeatherApi // Changed from RetrofitClient
 import kotlinx.coroutines.flow.Flow
 
 data class FloodWeatherStatus(
@@ -12,7 +12,11 @@ data class FloodWeatherStatus(
     val advisoryMessage: String
 )
 
-class WasteRepository(private val wasteDao: WasteDao) {
+// Added weatherApi to the constructor
+class WasteRepository(
+    private val wasteDao: WasteDao,
+    private val weatherApi: WeatherApi
+) {
 
     private val apiKey = "YOUR_OPENWEATHER_API_KEY"
 
@@ -38,7 +42,9 @@ class WasteRepository(private val wasteDao: WasteDao) {
             if (apiKey == "YOUR_OPENWEATHER_API_KEY") {
                 throw IllegalStateException("Using offline Nairobi seasonal forecast")
             }
-            val response = RetrofitClient.weatherService.getNairobiWeather(apiKey = apiKey)
+            // Updated to use the injected weatherApi
+            val response = weatherApi.getNairobiWeather(apiKey = apiKey)
+
             val mainCondition = response.weather.firstOrNull()?.main ?: "Clear"
             val desc = response.weather.firstOrNull()?.description?.replaceFirstChar { it.uppercase() } ?: "Clear skies"
             val tempStr = "${response.main.temp.toInt()}°C"

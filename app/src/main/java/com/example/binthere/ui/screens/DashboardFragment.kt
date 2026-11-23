@@ -14,13 +14,18 @@ import androidx.navigation.fragment.findNavController
 import com.example.binthere.R
 import com.example.binthere.databinding.FragmentDashboardBinding
 import com.example.binthere.ui.viewmodel.WasteViewModel
+import com.example.binthere.ui.viewmodel.WasteViewModelFactory
 import kotlinx.coroutines.launch
 
 class DashboardFragment : Fragment() {
 
     private var _binding: FragmentDashboardBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: WasteViewModel by activityViewModels()
+
+    // Ensure this uses viewModels (not activityViewModels) and the Factory
+    private val viewModel: WasteViewModel by activityViewModels {
+        WasteViewModelFactory(requireContext().applicationContext)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -28,7 +33,7 @@ class DashboardFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentDashboardBinding.inflate(inflater, container, false)
-        return binding.root
+        return _binding!!.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

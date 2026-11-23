@@ -1,53 +1,35 @@
 package com.example.binthere.ui.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.binthere.data.local.AppDatabase
-import com.example.binthere.data.local.entities.*
+import com.example.binthere.data.local.entities.CleanupAlertEntity
+import com.example.binthere.data.local.entities.PickupScheduleEntity
 import com.example.binthere.data.repository.FloodWeatherStatus
 import com.example.binthere.data.repository.WasteRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class WasteViewModel(application: Application) : AndroidViewModel(application) {
+class WasteViewModel(private val repository: WasteRepository) : ViewModel() {
 
-    private val repository: WasteRepository
+    val alerts = repository.allAlerts
+    val schedules = repository.allSchedules
+    val collectionPoints = repository.allCollectionPoints
 
-    val alerts: StateFlow<List<CleanupAlertEntity>>
-    val schedules: StateFlow<List<PickupScheduleEntity>>
-    val collectionPoints: StateFlow<List<CollectionPointEntity>>
+    // Flow for Toast messages
+    private val _uiMessage = MutableSharedFlow<String>()
+    val uiMessage = _uiMessage.asSharedFlow()
 
     private val _weatherStatus = MutableStateFlow(
-        FloodWeatherStatus("21°C", "Loading Nairobi weather...", false, "Checking flood risk...")
+        FloodWeatherStatus(
+            temperature = "Loading...",
+            condition = "Fetching weather...",
+            isFloodRiskHigh = false,
+            advisoryMessage = "Checking Nairobi forecast..."
+        )
     )
     val weatherStatus: StateFlow<FloodWeatherStatus> = _weatherStatus.asStateFlow()
 
-    private val _uiMessage = MutableSharedFlow<String>()
-    val uiMessage: SharedFlow<String> = _uiMessage.asSharedFlow()
-
     init {
-        val dao = AppDatabase.getDatabase(application).wasteDao()
-        repository = WasteRepository(dao)
-
-        alerts = repository.allAlerts.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-        schedules = repository.allSchedules.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-        collectionPoints = repository.allCollectionPoints.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
         refreshWeather()
     }
 
@@ -57,40 +39,28 @@ class WasteViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun submitCleanupAlert(
-        zone: String,
-        landmark: String,
-        issueType: String,
-        severity: String,
-        reportedByRole: String
-    ) {
+    fun submitCleanupAlert(zone: String, landmark: String, issueType: String, severity: String, reportedByRole: String) {
         viewModelScope.launch {
-            val cleanZone = zone.trim()
-            val cleanLandmark = landmark.trim()
-
-            if (cleanZone.isEmpty() || cleanLandmark.isEmpty()) {
-                _uiMessage.emit("Please enter both a Nairobi zone and a specific landmark.")
-                return@launch
-            }
-            if (cleanLandmark.length < 4) {
-                _uiMessage.emit("Landmark is too short. Provide a clearer location (e.g., Moi Avenue).")
-                return@launch
-            }
-            if (repository.isDuplicateAlert(cleanLandmark, issueType)) {
-                _uiMessage.emit("A pending '$issueType' alert already exists at $cleanLandmark!")
+            if (zone.isBlank() || landmark.isBlank()) {
+                _uiMessage.emit("Please fill in both Zone and Landmark.")
                 return@launch
             }
 
-            repository.addAlert(
-                CleanupAlertEntity(
-                    zone = cleanZone,
-                    landmark = cleanLandmark,
-                    issueType = issueType,
-                    severity = severity,
-                    reportedByRole = reportedByRole
-                )
+            val isDuplicate = repository.isDuplicateAlert(landmark, issueType)
+            if (isDuplicate) {
+                _uiMessage.emit("An alert for this issue at this landmark is already pending.")
+                return@launch
+            }
+
+            val newAlert = CleanupAlertEntity(
+                zone = zone,
+                landmark = landmark,
+                issueType = issueType,
+                severity = severity,
+                reportedByRole = reportedByRole
             )
-            _uiMessage.emit("Cleanup alert logged for $cleanLandmark!")
+            repository.addAlert(newAlert)
+            _uiMessage.emit("Alert reported successfully!")
         }
     }
 
@@ -98,7 +68,6 @@ class WasteViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val newStatus = if (alert.status == "Pending") "Cleared" else "Pending"
             repository.updateAlert(alert.copy(status = newStatus))
-            _uiMessage.emit("Alert marked as $newStatus.")
         }
     }
 
@@ -109,6 +78,7 @@ class WasteViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // NEW FUNCTION: Handles adding the schedule and returning it for the notification callback
     fun submitPickupSchedule(
         zone: String,
         collectionPoint: String,
@@ -116,32 +86,35 @@ class WasteViewModel(application: Application) : AndroidViewModel(application) {
         pickupTime: String,
         organizerRole: String,
         notes: String,
-        onScheduledSuccess: (PickupScheduleEntity) -> Unit
+        onScheduleCreated: (PickupScheduleEntity) -> Unit
     ) {
         viewModelScope.launch {
-            if (zone.isBlank() || collectionPoint.isBlank() || pickupDate.isBlank() || pickupTime.isBlank()) {
-                _uiMessage.emit("Please fill in zone, collection point, date, and time.")
+            if (zone.isBlank() || collectionPoint.isBlank()) {
+                _uiMessage.emit("Zone and Collection Point are required.")
                 return@launch
             }
 
             val newSchedule = PickupScheduleEntity(
-                zone = zone.trim(),
-                collectionPoint = collectionPoint.trim(),
-                pickupDate = pickupDate.trim(),
-                pickupTime = pickupTime.trim(),
+                zone = zone,
+                collectionPoint = collectionPoint,
+                pickupDate = pickupDate,
+                pickupTime = pickupTime,
                 organizerRole = organizerRole,
-                notes = notes.trim().ifEmpty { "Bring gloves and heavy-duty bags." }
+                notes = notes
             )
+
             repository.addSchedule(newSchedule)
-            _uiMessage.emit("Pickup scheduled for ${newSchedule.zone} on ${newSchedule.pickupDate}!")
-            onScheduledSuccess(newSchedule)
+            _uiMessage.emit("Pickup scheduled successfully!")
+
+            // Trigger the callback so the Fragment can start the Worker
+            onScheduleCreated(newSchedule)
         }
     }
 
     fun deleteSchedule(schedule: PickupScheduleEntity) {
         viewModelScope.launch {
             repository.deleteSchedule(schedule)
-            _uiMessage.emit("Pickup schedule removed.")
+            _uiMessage.emit("Schedule deleted.")
         }
     }
 }

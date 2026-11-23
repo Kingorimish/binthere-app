@@ -1,6 +1,5 @@
 package com.example.binthere.data.local.entities
 
-
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
